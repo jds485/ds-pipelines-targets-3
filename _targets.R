@@ -20,13 +20,13 @@ list(
 
   # PULL SITE DATA
   tar_target(wi_data,
-             get_site_data(sites_info = oldest_active_sites, state = "WI", parameter = c('00060'))
+             get_site_data(sites_info = oldest_active_sites, state = "WI", parameter = parameter)
              ),
   tar_target(mn_data,
-             get_site_data(sites_info = oldest_active_sites, state = "MN", parameter = '00060')
+             get_site_data(sites_info = oldest_active_sites, state = "MN", parameter = parameter)
   ),
   tar_target(mi_data,
-             get_site_data(sites_info = oldest_active_sites, state = "MI", parameter = '00060')
+             get_site_data(sites_info = oldest_active_sites, state = "MI", parameter = parameter)
   ),
 
   # Map oldest sites
