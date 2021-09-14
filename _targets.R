@@ -2,9 +2,13 @@
 library(targets)
 library(tarchetypes)
 library(tibble)
+library(clustermq)
+library(rzmq)
 
 options(tidyverse.quiet = TRUE)
 tar_option_set(packages = c("tidyverse", "dataRetrieval", "urbnmapr", "rnaturalearth", "cowplot"))
+
+options(clustermq.scheduler = "multiprocess")
 
 # Load functions needed by targets below
 source("1_fetch/src/find_oldest_sites.R")
