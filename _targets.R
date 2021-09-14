@@ -6,7 +6,7 @@ library(clustermq)
 library(rzmq)
 
 options(tidyverse.quiet = TRUE)
-tar_option_set(packages = c("tidyverse", "dataRetrieval", "urbnmapr", "rnaturalearth", "cowplot"))
+tar_option_set(packages = c("tidyverse", "dataRetrieval", "urbnmapr", "rnaturalearth", "cowplot"), error = 'abridge')
 
 options(clustermq.scheduler = "multiprocess")
 
