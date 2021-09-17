@@ -3,6 +3,7 @@ library(targets)
 library(tarchetypes)
 library(tibble)
 suppressPackageStartupMessages(library(dplyr))
+library(retry)
 
 options(tidyverse.quiet = TRUE)
 tar_option_set(packages = c("tidyverse", "dataRetrieval", "urbnmapr", "rnaturalearth", "cowplot", "lubridate", 'leaflet', 'leafpop', 'htmlwidgets'))
@@ -18,8 +19,10 @@ source("3_visualize/src/plot_data_coverage.R")
 source("3_visualize/src/map_timeseries.R")
 
 # Configuration
-states <- c('WI','MN','MI', 'IL', 'IN', 'IA')
-#states <- c('WI','MN','MI', 'IN', 'IA')
+states <- c('AL','AZ','AR','CA','CO','CT','DE','DC','FL','GA','ID','IL','IN','IA',
+            'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH',
+            'NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX',
+            'UT','VT','VA','WA','WV','WI','WY','AK','HI','GU','PR')
 parameter <- c('00060')
 
 # Target map object for pulling site data
@@ -27,7 +30,9 @@ mapped_by_state_targets <- tar_map(
   values = tibble(state_abb = states) %>%
     mutate(state_plot_files = sprintf("3_visualize/out/timeseries_%s.png", state_abb)),
   tar_target(nwis_inventory, get_state_inventory(sites_info = oldest_active_sites, state_abb)),
-  tar_target(nwis_data, get_site_data(nwis_inventory, state_abb, parameter)),
+  tar_target(nwis_data, retry(expr = get_site_data(nwis_inventory, state_abb, parameter),
+                              when = "Ugh, the internet data transfer failed!",
+                              max_tries = 30)),
   tar_target(tally, tally_site_obs(site_data = nwis_data)),
   tar_target(timeseries_png, plot_site_data(out_file = state_plot_files, site_data = nwis_data, parameter = parameter), format = 'file'),
   names = state_abb,
