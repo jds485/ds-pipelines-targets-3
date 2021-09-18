@@ -25,42 +25,46 @@ states <- c('AL','AZ','AR','CA','CO','CT','DE','DC','FL','GA','ID','IL','IN','IA
             'UT','VT','VA','WA','WV','WI','WY','AK','HI','GU','PR')
 parameter <- c('00060')
 
-# Target map object for pulling site data
-mapped_by_state_targets <- tar_map(
-  values = tibble(state_abb = states) %>%
-    mutate(state_plot_files = sprintf("3_visualize/out/timeseries_%s.png", state_abb)),
-  tar_target(nwis_inventory, get_state_inventory(sites_info = oldest_active_sites, state_abb)),
-  tar_target(nwis_data, retry(expr = get_site_data(nwis_inventory, state_abb, parameter),
-                              when = "Ugh, the internet data transfer failed!",
-                              max_tries = 30)),
-  tar_target(tally, tally_site_obs(site_data = nwis_data)),
-  tar_target(timeseries_png, plot_site_data(out_file = state_plot_files, site_data = nwis_data, parameter = parameter), format = 'file'),
-  names = state_abb,
-  unlist = FALSE
-)
-
 # Targets
 list(
   # Identify oldest sites
   tar_target(oldest_active_sites, find_oldest_sites(states, parameter)),
 
-  # PULL SITE DATA - in object outside of list
-  mapped_by_state_targets,
+  # PULL SITE DATA
+  tar_target(nwis_inventory,
+             oldest_active_sites %>%
+               group_by(state_cd) %>%
+               tar_group(),
+             iteration = "group"),
 
-  # Combine tally data
-  tar_combine(name = obs_tallies,
-              mapped_by_state_targets$tally,
-              command = combine_obs_tallies(!!!.x)),
+  tar_target(nwis_data,
+             retry(expr = get_site_data(nwis_inventory, nwis_inventory$state_cd, parameter),
+                   when = "Ugh, the internet data transfer failed!",
+                   max_tries = 30),
+             pattern = map(nwis_inventory)),
+
+  tar_target(tally,
+             tally_site_obs(site_data = nwis_data),
+             pattern = map(nwis_data)),
+
+  #Plot timeseries
+  tar_target(timeseries_png,
+             plot_site_data(out_file = sprintf("3_visualize/out/timeseries_%s.png",
+                                               unique(nwis_data$State)),
+                            site_data = nwis_data,
+                            parameter = parameter),
+             format = 'file',
+             pattern = map(nwis_data)),
 
   # Summarize targets
-  tar_combine(summary_state_timeseries_csv,
-              mapped_by_state_targets$timeseries_png,
-              command = summarize_targets('3_visualize/log/summary_state_timeseries.csv', !!!.x),
+  tar_target(summary_state_timeseries_csv,
+              command = summarize_targets('3_visualize/log/summary_state_timeseries.csv',
+                                          names(timeseries_png)),
               format = 'file'),
 
   # Plot data coverage
   tar_target(coverage_plot_png,
-             command = plot_data_coverage(oldest_site_tallies = obs_tallies,
+             command = plot_data_coverage(oldest_site_tallies = tally,
                                           parameter = parameter,
                                           out_file = "3_visualize/out/coverage_plot.png"),
              format = 'file'),
